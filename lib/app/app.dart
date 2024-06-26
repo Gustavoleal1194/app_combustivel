@@ -1,8 +1,8 @@
+import 'package:app_combustivel/app/validators/consulta_cep.dart';
+import 'package:app_combustivel/app/validators/input_validators.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_masked_text2/flutter_masked_text2.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -22,90 +22,15 @@ class _MyAppState extends State<MyApp> {
   final _enderecoController = TextEditingController();
   final _bairroController = TextEditingController();
   final _numeroController = TextEditingController();
+  final CepConsulta _cepService = CepConsulta();
 
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Por favor, informe o e-mail';
-    }
-    final regex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-    if (!regex.hasMatch(value)) {
-      return 'Por favor, informe um e-mail válido';
-    }
-    return null;
-  }
-
-  String? _validateComun(String? value) {
-    {
-      if (value == null || value.isEmpty) {
-        return 'Campo obrigatório';
-      }
-      return null;
-    }
-  }
-
-  bool _validateCpf(String cpf) {
-    // Remove all non-digit characters
-    cpf = cpf.replaceAll(RegExp(r'\D'), '');
-
-    if (cpf.length != 11) {
-      return false;
-    }
-
-    // Invalid CPF numbers
-    if (RegExp(r'^(\d)\1*$').hasMatch(cpf)) {
-      return false;
-    }
-
-    List<int> numbers = cpf.split('').map(int.parse).toList();
-
-    // Validate first digit
-    int sum = 0;
-    for (int i = 0; i < 9; i++) {
-      sum += numbers[i] * (10 - i);
-    }
-    int result = sum % 11;
-    if (result < 2) {
-      if (numbers[9] != 0) {
-        return false;
-      }
-    } else if (numbers[9] != 11 - result) {
-      return false;
-    }
-
-    // Validate second digit
-    sum = 0;
-    for (int i = 0; i < 10; i++) {
-      sum += numbers[i] * (11 - i);
-    }
-    result = sum % 11;
-    if (result < 2) {
-      if (numbers[10] != 0) {
-        return false;
-      }
-    } else if (numbers[10] != 11 - result) {
-      return false;
-    }
-
-    return true;
-  }
-
-  Future<void> _consultarCEP() async {
-    final cep = _cepController.text.replaceAll(RegExp(r'\D'), '');
-    final url = Uri.parse('https://viacep.com.br/ws/$cep/json/');
-
+  void _consultarCEP(String cep) async {
     try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final jsonBody = jsonDecode(response.body);
-        setState(() {
-          _enderecoController.text = jsonBody['logradouro'];
-          _bairroController.text = jsonBody['bairro'];
-          _numeroController.text =
-              ''; // Preencher conforme a estrutura da API ViaCep
-        });
-      } else {
-        throw Exception('Falha ao consultar CEP');
-      }
+      final endereco = await _cepService.consultarCEP(cep);
+      _enderecoController.text = endereco.logradouro;
+      _bairroController.text = endereco.bairro;
+
+      setState(() {});
     } catch (e) {
       ('Erro ao consultar CEP: $e');
     }
@@ -135,7 +60,7 @@ class _MyAppState extends State<MyApp> {
                   SizedBox(
                     width: 500,
                     child: TextFormField(
-                      validator: _validateComun,
+                      validator: InputValidator.validateComun,
                       controller: _nameController,
                       decoration: const InputDecoration(
                         fillColor: Colors.white,
@@ -151,25 +76,26 @@ class _MyAppState extends State<MyApp> {
                   SizedBox(
                     width: 500,
                     child: TextFormField(
-                        inputFormatters: <TextInputFormatter>[
-                          FilteringTextInputFormatter.digitsOnly
-                        ],
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Por favor, informe o cpf';
-                          }
-                          if (!_validateCpf(value)) {
-                            return 'CPF Inválido';
-                          }
-                          return null;
-                        },
-                        controller: _cpfController,
-                        decoration: const InputDecoration(
-                          fillColor: Colors.white,
-                          filled: true,
-                          border: OutlineInputBorder(),
-                          labelText: 'CPF',
-                        )),
+                      inputFormatters: <TextInputFormatter>[
+                        FilteringTextInputFormatter.digitsOnly
+                      ],
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, informe o cpf';
+                        }
+                        if (!InputValidator.validateCpf(value)) {
+                          return 'CPF Inválido';
+                        }
+                        return null;
+                      },
+                      controller: _cpfController,
+                      decoration: const InputDecoration(
+                        fillColor: Colors.white,
+                        filled: true,
+                        border: OutlineInputBorder(),
+                        labelText: 'CPF',
+                      ),
+                    ),
                   ),
                   const SizedBox(
                     height: 16,
@@ -196,7 +122,7 @@ class _MyAppState extends State<MyApp> {
                     width: 500,
                     child: TextFormField(
                         controller: _emailController,
-                        validator: _validateEmail,
+                        validator: InputValidator.validateEmail,
                         decoration: const InputDecoration(
                           fillColor: Colors.white,
                           filled: true,
@@ -217,7 +143,7 @@ class _MyAppState extends State<MyApp> {
                         controller: _cepController,
                         onChanged: (value) {
                           if (value.length == 9) {
-                            _consultarCEP();
+                            _consultarCEP(value);
                           }
                         },
                         decoration: const InputDecoration(
@@ -240,7 +166,7 @@ class _MyAppState extends State<MyApp> {
                           child: SizedBox(
                             width: 500,
                             child: TextFormField(
-                              validator: _validateComun,
+                              validator: InputValidator.validateComun,
                               controller: _enderecoController,
                               decoration: const InputDecoration(
                                 fillColor: Colors.white,
@@ -259,7 +185,7 @@ class _MyAppState extends State<MyApp> {
                           child: SizedBox(
                             width: 100,
                             child: TextFormField(
-                              validator: _validateComun,
+                              validator: InputValidator.validateComun,
                               controller: _bairroController,
                               decoration: const InputDecoration(
                                 fillColor: Colors.white,
@@ -277,7 +203,7 @@ class _MyAppState extends State<MyApp> {
                           child: SizedBox(
                             width: 50,
                             child: TextFormField(
-                              validator: _validateComun,
+                              validator: InputValidator.validateComun,
                               controller: _numeroController,
                               decoration: const InputDecoration(
                                 fillColor: Colors.white,
