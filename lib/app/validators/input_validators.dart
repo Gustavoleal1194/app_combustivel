@@ -1,7 +1,7 @@
 class InputValidator {
   static String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Por favor, informe o e-mail';
+      return 'Campo obrigatório';
     }
     final regex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
     if (!regex.hasMatch(value)) {
